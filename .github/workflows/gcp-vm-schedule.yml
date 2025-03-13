@@ -1,10 +1,10 @@
 name: GCP VM Schedule
 
 on:
-    schedule:
-      - cron: '30 17 * * *'
-      - cron: '30 5 * * *'
-    workflow_dispatch:  # Add this line
+  schedule:
+    - cron: '30 17 * * *'  # Shutdown at 11 PM IST (5:30 PM UTC)
+    - cron: '30 5 * * *'   # Startup at 11 AM IST (5:30 AM UTC)
+  workflow_dispatch:  # Added for manual testing
 
 jobs:
   manage-vm:
@@ -21,7 +21,14 @@ jobs:
         service_account_key: ${{ secrets.GCP_SA_KEY }}
         project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-    # Determine action based on time
+    # Explicitly authenticate with the service account
+    - name: Authenticate with Service Account
+      run: |
+        echo "${{ secrets.GCP_SA_KEY }}" > key.json
+        gcloud auth activate-service-account --key-file=key.json
+        rm key.json
+
+    # Start or Stop VM
     - name: Start or Stop VM
       run: |
         # Get current hour in UTC from GitHub Actions
