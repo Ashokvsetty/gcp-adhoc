@@ -1,0 +1,43 @@
+name: GCP VM Schedule
+
+on:
+  schedule:
+    # Schedule in UTC (IST is UTC+5:30)
+    # 11 PM IST = 5:30 PM UTC
+    # 11 AM IST = 5:30 AM UTC
+    - cron: '30 17 * * *'  # Shutdown at 11 PM IST (5:30 PM UTC)
+    - cron: '30 5 * * *'   # Startup at 11 AM IST (5:30 AM UTC)
+
+jobs:
+  manage-vm:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # Checkout repository
+    - uses: actions/checkout@v4
+    
+    # Set up Google Cloud SDK
+    - name: Setup Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+    # Determine action based on time
+    - name: Start or Stop VM
+      run: |
+        # Get current hour in UTC from GitHub Actions
+        CURRENT_HOUR=$(date -u +%H)
+        
+        # If it's 5 UTC (11 AM IST), start VM
+        if [ "$CURRENT_HOUR" -eq "05" ]; then
+          echo "Starting VM..."
+          gcloud compute instances start ${{ secrets.GCP_VM_NAME }} \
+            --zone=${{ secrets.GCP_ZONE }}
+        # If it's 17 UTC (11 PM IST), stop VM
+        elif [ "$CURRENT_HOUR" -eq "17" ]; then
+          echo "Stopping VM..."
+          gcloud compute instances stop ${{ secrets.GCP_VM_NAME }} \
+            --zone=${{ secrets.GCP_ZONE }}
+        fi
+        
