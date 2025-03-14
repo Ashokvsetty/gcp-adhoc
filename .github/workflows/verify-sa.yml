@@ -1,0 +1,43 @@
+name: Verify GCP Service Account
+
+on:
+  workflow_dispatch:  # Allows manual triggering for testing
+
+jobs:
+  verify-service-account:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    # Authenticate with Google Cloud using the service account
+    - id: 'auth'
+      uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'  # Use your existing secret
+
+    # Set up Google Cloud SDK
+    - name: 'Set up Cloud SDK'
+      uses: 'google-github-actions/setup-gcloud@v2'
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+    # Verify authentication by listing active accounts
+    - name: 'Check Active Account'
+      run: |
+        echo "Listing active Google Cloud accounts..."
+        gcloud auth list
+        echo "Active account should be: gcp-adhoc-shutdown-sa@buoyant-facet-448415-n4.iam.gserviceaccount.com"
+
+    # Verify gcloud CLI functionality
+    - name: 'Run gcloud Info'
+      run: |
+        echo "Displaying gcloud environment info..."
+        gcloud info
+
+    # Optional: Test a simple gcloud command (e.g., list projects)
+    - name: 'Test gcloud Command'
+      run: |
+        echo "Listing GCP projects to verify access..."
+        gcloud projects list
