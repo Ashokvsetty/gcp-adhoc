@@ -4,42 +4,44 @@ on:
   schedule:
     - cron: '30 17 * * *'  # Shutdown at 11 PM IST (5:30 PM UTC)
     - cron: '30 5 * * *'   # Startup at 11 AM IST (5:30 AM UTC)
-  workflow_dispatch:  # Added for manual testing
+  workflow_dispatch:
 
 jobs:
   manage-vm:
     runs-on: ubuntu-latest
     
     steps:
-    # Checkout repository
     - uses: actions/checkout@v4
     
-    # Set up Google Cloud SDK
     - name: Setup Google Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
       with:
-        service_account_key: ${{ secrets.GCP_SA_KEY }}
         project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-    # Explicitly authenticate with the service account
+    # Debug step to inspect the secret content
+    - name: Debug Service Account Key
+      run: |
+        echo "Raw secret content:"
+        echo "${{ secrets.GCP_SA_KEY }}"
+        echo "Writing to key.json..."
+        printf '%s' "${{ secrets.GCP_SA_KEY }}" > key.json
+        echo "Content of key.json:"
+        cat key.json
+        echo "Validating JSON..."
+        jq . key.json || echo "JSON validation failed"
+
     - name: Authenticate with Service Account
       run: |
-        echo "${{ secrets.GCP_SA_KEY }}" > key.json
         gcloud auth activate-service-account --key-file=key.json
         rm key.json
 
-    # Start or Stop VM
     - name: Start or Stop VM
       run: |
-        # Get current hour in UTC from GitHub Actions
         CURRENT_HOUR=$(date -u +%H)
-        
-        # If it's 5 UTC (11 AM IST), start VM
         if [ "$CURRENT_HOUR" -eq "05" ]; then
           echo "Starting VM..."
           gcloud compute instances start ${{ secrets.GCP_VM_NAME }} \
             --zone=${{ secrets.GCP_ZONE }}
-        # If it's 17 UTC (11 PM IST), stop VM
         elif [ "$CURRENT_HOUR" -eq "17" ]; then
           echo "Stopping VM..."
           gcloud compute instances stop ${{ secrets.GCP_VM_NAME }} \
