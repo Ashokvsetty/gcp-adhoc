@@ -1,25 +1,30 @@
-name: GCP VM Schedule
+name: Verify GCP Service Account
 
 on:
-  schedule:
-    - cron: '30 17 * * *'  # Shutdown at 11 PM IST (5:30 PM UTC)
-    - cron: '30 5 * * *'   # Startup at 11 AM IST (5:30 AM UTC)
-  workflow_dispatch:
+  workflow_dispatch:  # Allows manual triggering for testing
 
 jobs:
-  manage-vm:
+  verify-service-account:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Google Cloud SDK
-      uses: google-github-actions/setup-gcloud@v2
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    # Authenticate with Google Cloud using the service account
+    - id: 'auth'
+      uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+    # Set up Google Cloud SDK
+    - name: 'Set up Cloud SDK'
+      uses: 'google-github-actions/setup-gcloud@v2'
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-    # Debug step to inspect the secret content
-    - name: Debug Service Account Key
+    # Debug the secret content
+    - name: 'Debug Service Account Key'
       run: |
         echo "Raw secret content:"
         echo "${{ secrets.GCP_SA_KEY }}"
@@ -30,20 +35,15 @@ jobs:
         echo "Validating JSON..."
         jq . key.json || echo "JSON validation failed"
 
-    - name: Authenticate with Service Account
+    # Verify authentication by listing active accounts
+    - name: 'Check Active Account'
       run: |
-        gcloud auth activate-service-account --key-file=key.json
-        rm key.json
+        echo "Listing active Google Cloud accounts..."
+        gcloud auth list
+        echo "Expected active account: gcp-adhoc-shutdown-sa@buoyant-facet-448415-n4.iam.gserviceaccount.com"
 
-    - name: Start or Stop VM
+    # Verify gcloud CLI functionality
+    - name: 'Run gcloud Info'
       run: |
-        CURRENT_HOUR=$(date -u +%H)
-        if [ "$CURRENT_HOUR" -eq "05" ]; then
-          echo "Starting VM..."
-          gcloud compute instances start ${{ secrets.GCP_VM_NAME }} \
-            --zone=${{ secrets.GCP_ZONE }}
-        elif [ "$CURRENT_HOUR" -eq "17" ]; then
-          echo "Stopping VM..."
-          gcloud compute instances stop ${{ secrets.GCP_VM_NAME }} \
-            --zone=${{ secrets.GCP_ZONE }}
-        fi
+        echo "Displaying gcloud environment info..."
+        gcloud info
