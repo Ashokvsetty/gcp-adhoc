@@ -47,3 +47,19 @@ jobs:
       run: |
         echo "Displaying gcloud environment info..."
         gcloud info
+
+    # Start or Stop VM based on scheduled time
+    - name: 'Start or Stop VM'
+     run: |
+       CURRENT_HOUR=$(date -u +%H)
+       if [ "$CURRENT_HOUR" -eq "05" ]; then
+         echo "Powering on VM at 11 AM IST (5:30 AM UTC)..."
+         gcloud compute instances start ${{ secrets.GCP_VM_NAME }} \
+           --zone=${{ secrets.GCP_ZONE }}
+       elif [ "$CURRENT_HOUR" -eq "17" ]; then
+         echo "Shutting down VM at 11 PM IST (5:30 PM UTC)..."
+         gcloud compute instances stop ${{ secrets.GCP_VM_NAME }} \
+           --zone=${{ secrets.GCP_ZONE }}
+       else
+         echo "No action taken. Current UTC hour: $CURRENT_HOUR"
+       fi
